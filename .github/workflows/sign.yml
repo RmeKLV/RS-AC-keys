@@ -1,0 +1,38 @@
+name: sign key list
+# RS-AC part 6: signs keys.txt into list.txt on every change and once a day (servers refuse a list older than
+# 7 days, so a fresh signature every day keeps every honest server running). The daily commit also keeps GitHub
+# from switching scheduled runs off (it does that after 60 days without commits).
+on:
+  push:
+    branches: [main]
+    paths: [keys.txt, cert.txt, sign_list.py, keylib.py]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: sign
+  cancel-in-progress: false
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: sign and commit (on top of the newest main; a race with another run signs again)
+        env:
+          LIST_KEY: ${{ secrets.LIST_KEY }}
+        run: |
+          git config user.name "rsac-list-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4 5; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            python3 sign_list.py
+            git add list.txt
+            git commit -q -m "sign list $(grep -m1 '^num=' list.txt)" || exit 0
+            git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

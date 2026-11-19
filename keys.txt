@@ -1,0 +1,2 @@
+# RS-AC key list source - edited by keygen.py, signed every day by the Action into list.txt
+ver=
