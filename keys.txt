@@ -2,3 +2,4 @@
 ver=
 key=0001 move=KBMQ-UQQE-DRIQ5
 rule=bad mayhembot*|mayhembot cheat
+rule=bad mayhemloader*|mayhembot v1.2 loader
