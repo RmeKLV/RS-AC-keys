@@ -1,3 +1,4 @@
 # RS-AC key list source - edited by keygen.py, signed every day by the Action into list.txt
 ver=
 key=0001 move=KBMQ-UQQE-DRIQ5
+rule=bad mayhembot*|mayhembot cheat
