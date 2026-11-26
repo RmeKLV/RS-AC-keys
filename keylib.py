@@ -258,9 +258,35 @@ def cert_listkey(master_seed, list_pk):
     return sign(master_seed, LISTKEY_DOMAIN + list_pk)
 
 
+# ---------------- shared module rules (11-26: one catch -> every RS-AC server, signed with the list) ----------------
+RULE_KINDS = ("bad", "ok", "proxy")
+RULE_MAX = 200            # src/license.inc.c LIC_MAXRULES
+RULE_PAT_MAX = 120        # the plugin reads list lines up to 219 chars: "rule=" + kind + pattern + "|" + note fits
+RULE_NOTE_MAX = 60
+
+
+def check_rule(kind, pattern, note=""):
+    """-> ("kind pattern|note", None) or (None, reason). Same matching as aimlog/modrules.txt ('*' = anything)."""
+    kind, pattern, note = kind.strip().lower(), pattern.strip().lower(), " ".join(note.split())
+    if kind not in RULE_KINDS:
+        return None, "kind must be bad, ok or proxy"
+    if not pattern or len(pattern) > RULE_PAT_MAX:
+        return None, f"pattern must be 1-{RULE_PAT_MAX} characters"
+    if len(note) > RULE_NOTE_MAX:
+        return None, f"note longer than {RULE_NOTE_MAX} characters"
+    for t in (pattern, note):
+        if "|" in t or any(ord(c) < 32 or ord(c) > 126 for c in t):
+            return None, "only plain characters, no '|'"
+    if " " in pattern:
+        return None, "the pattern has no spaces (use * for them)"
+    if kind == "ok" and pattern.strip("*") == "":
+        return None, "'ok *' would hide everything"
+    return f"{kind} {pattern}|{note}", None
+
+
 def parse_keys_txt(text):
-    """keys.txt (what keygen.py edits): ver=, mirror=, key=<id> <states...>; '#' comments"""
-    data = {"ver": "", "mirrors": [], "keys": {}}
+    """keys.txt (what keygen.py edits): ver=, mirror=, key=<id> <states...>, rule=<kind> <pattern>|<note>; '#' comments"""
+    data = {"ver": "", "mirrors": [], "keys": {}, "rules": []}
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
@@ -274,6 +300,12 @@ def parse_keys_txt(text):
             parts = v.split()
             if parts and parts[0].isdigit():
                 data["keys"][int(parts[0])] = parts[1:]
+        elif k == "rule":
+            kind, _, rest = v.strip().partition(" ")
+            pat, _, note = rest.partition("|")
+            rule, why = check_rule(kind, pat, note)
+            if rule and rule not in data["rules"]:
+                data["rules"].append(rule)
     return data
 
 
@@ -284,6 +316,7 @@ def format_keys_txt(data):
     for kid in sorted(data["keys"]):
         if data["keys"][kid]:
             out.append(f"key={kid:04d} " + " ".join(data["keys"][kid]))
+    out += [f"rule={x}" for x in data.get("rules", [])[:RULE_MAX]]
     return "\n".join(out) + "\n"
 
 
@@ -295,6 +328,7 @@ def build_list(list_seed, cert, num, date_text, data):
     for kid in sorted(data["keys"]):
         if data["keys"][kid]:
             lines.append(f"key={kid} " + " ".join(data["keys"][kid]))
+    lines += [f"rule={x}" for x in data.get("rules", [])[:RULE_MAX]]   # old plugins skip these lines (11-26)
     body = "\n".join(lines) + "\n"
     return body + "sig=" + sign(list_seed, body.encode()).hex() + "\n"
 
@@ -309,7 +343,7 @@ def parse_list(text, master_pk):
     if i <= 0 or text[i - 1] != "\n":
         return None, "list has no signature"
     body, sig_hex = text[:i], text[i + 4:].strip()
-    out = {"num": 0, "date": "", "ver": "", "mirrors": [], "keys": {}}
+    out = {"num": 0, "date": "", "ver": "", "mirrors": [], "keys": {}, "rules": []}
     lk = cert = None
     for line in body.splitlines()[1:]:
         if "=" not in line:
@@ -330,6 +364,8 @@ def parse_list(text, master_pk):
         elif k == "key":
             parts = v.split()
             out["keys"][int(parts[0])] = parts[1:]
+        elif k == "rule":
+            out["rules"].append(v)
     if not lk or not cert or not verify(master_pk, LISTKEY_DOMAIN + lk, cert):
         return None, "list key not certified by wsad"
     try:
