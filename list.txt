@@ -1,5 +1,5 @@
 RSAC-LIST 1
-num=13
+num=14
 date=2026-11-26
 ver=
 listkey=bd2067333f1d59907bd713557bc00620d7cd5d53ddd0f7855299a8ef869713a3
@@ -7,4 +7,4 @@ cert=63cf36a333aa1cba49146d3eb9f8e47ffd69e37a6e78b564fcc1cbaf6fe5b1c41c893e0f8fa
 key=1 move=KBMQ-UQQE-DRIQ5
 rule=bad mayhembot*|mayhembot cheat
 rule=bad mayhemloader*|mayhembot v1.2 loader
-sig=2aeaae38f82f4182f784c623c81eaf5b9e3ff4d6ba561750958cb9ee3badd8b5a1eb16b78ee87b54cefa3e4a08dec18efb67fb1ccfb2fe689330b9ada427890f
+sig=2968e595fa2b830d0a10bfd311c458a80d547221f3bdc309ccb00968858357abdad78c3d25bbb076d42fc0f88a50870cfd7d41be60b0452c1a1334a5033e9600
